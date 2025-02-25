@@ -63,17 +63,6 @@ public class FreteService {
         return valorBase.add(adicional);
     }
 
-    public List<Frete> listarFretesPorCliente(Cliente cliente) {
-        if (cliente == null) {
-            throw new IllegalArgumentException("O cliente deve ser informado.");
-        }
-        if (cliente.getId() == 0) {
-            throw new IllegalArgumentException("O ID do cliente é inválido.");
-        }
-
-        return freteRepository.buscarPorCliente(cliente);
-    }
-
     public Optional<Frete> buscarFretePorId(int id) {
         if (id <= 0) {
             throw new IllegalArgumentException("O ID do frete deve ser maior que zero.");

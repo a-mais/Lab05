@@ -4,7 +4,9 @@ import model.*;
 import repository.*;
 import service.FreteService;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Optional;
 
 public class FreteTeste {
     public static void main(String[] args) {
@@ -21,6 +23,12 @@ public class FreteTeste {
         System.out.println("=== TESTE: REGISTRAR FRETE ===");
         testarRegistrarFrete(freteService, cidadeRepository, categoriaFreteRepository, clienteRepository,
                 filialRepository, funcionarioRepository, tipoVeiculoRepository, veiculoRepository, distanciaRepository);
+
+        System.out.println("=== TESTE: CALCULAR VALOR FRETE ===");
+        testarCalcularValorFrete(freteService, cidadeRepository, categoriaFreteRepository, distanciaRepository);
+
+        System.out.println("=== TESTE: BUSCAR FRETE POR ID ===");
+        testarBuscarFretePorId(freteService);
     }
 
     private static void testarRegistrarFrete(FreteService freteService,
@@ -32,7 +40,7 @@ public class FreteTeste {
                                              TipoVeiculoRepository tipoVeiculoRepository,
                                              VeiculoRepository veiculoRepository,
                                              DistanciaRepository distanciaRepository) {
-        // Buscar ou criar Cidade
+        // Buscar ou criar Cidade de origem
         Cidade cidadeOrigem = cidadeRepository.findById(1).orElseGet(() -> {
             Cidade novaCidade = new Cidade();
             novaCidade.setNome("São Paulo");
@@ -42,6 +50,7 @@ public class FreteTeste {
             return novaCidade;
         });
 
+        // Buscar ou criar Cidade de destino
         Cidade cidadeDestino = cidadeRepository.findById(2).orElseGet(() -> {
             Cidade novaCidade = new Cidade();
             novaCidade.setNome("Rio de Janeiro");
@@ -61,7 +70,7 @@ public class FreteTeste {
             return novaCategoria;
         });
 
-        // Criar Cliente com CPF, Nome, Email e Telefone
+        // Criar Cliente
         Cliente cliente = clienteRepository.findById(1).orElseGet(() -> {
             Cliente novoCliente = new Cliente();
             novoCliente.setNome("João Carlos");
@@ -83,7 +92,7 @@ public class FreteTeste {
             return novaFilial;
         });
 
-        // Criar Funcionario com CPF, Nome e Telefone
+        // Criar Funcionario
         Funcionario funcionario = funcionarioRepository.findById(1).orElseGet(() -> {
             Funcionario novoFuncionario = new Funcionario();
             novoFuncionario.setNome("Carlos Silva");
@@ -95,7 +104,7 @@ public class FreteTeste {
             return novoFuncionario;
         });
 
-        // Criar Dependente (não precisa buscar antes pois depende diretamente do Funcionario)
+        // Criar Dependente (associado ao funcionário)
         Dependente dependente = new Dependente();
         dependente.setNome("Pedro");
         dependente.setDataNascimento(LocalDate.of(2015, 6, 10));
@@ -126,7 +135,7 @@ public class FreteTeste {
                     Distancia novaDistancia = new Distancia();
                     novaDistancia.setCidadeOrigem(cidadeOrigem);
                     novaDistancia.setCidadeDestino(cidadeDestino);
-                    novaDistancia.setQuilometros(431); // Defina uma distância válida
+                    novaDistancia.setQuilometros(431); // Exemplo de distância
                     distanciaRepository.save(novaDistancia);
                     return novaDistancia;
                 });
@@ -155,5 +164,78 @@ public class FreteTeste {
         // Registrando o frete
         freteService.registrarFrete(frete);
         System.out.println("Frete registrado com sucesso! Valor do frete: R$" + frete.getValorKmRodado());
+    }
+
+    private static void testarCalcularValorFrete(FreteService freteService,
+                                                 CidadeRepository cidadeRepository,
+                                                 CategoriaFreteRepository categoriaFreteRepository,
+                                                 DistanciaRepository distanciaRepository) {
+        // Buscar ou criar Cidade de origem
+        Cidade cidadeOrigem = cidadeRepository.findById(1).orElseGet(() -> {
+            Cidade novaCidade = new Cidade();
+            novaCidade.setNome("São Paulo");
+            novaCidade.setUf("SP");
+            novaCidade.setEstado("São Paulo");
+            cidadeRepository.save(novaCidade);
+            return novaCidade;
+        });
+
+        // Buscar ou criar Cidade de destino
+        Cidade cidadeDestino = cidadeRepository.findById(2).orElseGet(() -> {
+            Cidade novaCidade = new Cidade();
+            novaCidade.setNome("Rio de Janeiro");
+            novaCidade.setUf("RJ");
+            novaCidade.setEstado("Rio de Janeiro");
+            cidadeRepository.save(novaCidade);
+            return novaCidade;
+        });
+
+        // Buscar ou criar CategoriaFrete
+        CategoriaFrete categoriaFrete = categoriaFreteRepository.findById(1).orElseGet(() -> {
+            CategoriaFrete novaCategoria = new CategoriaFrete();
+            novaCategoria.setNome("SEDEX");
+            novaCategoria.setDescricao("Entrega Super Rápida");
+            novaCategoria.setPercentualAdicional(30.0F);
+            categoriaFreteRepository.save(novaCategoria);
+            return novaCategoria;
+        });
+
+        // Garantir que a distância entre as cidades esteja cadastrada
+        distanciaRepository.findByCidades(cidadeOrigem, cidadeDestino)
+                .orElseGet(() -> {
+                    Distancia novaDistancia = new Distancia();
+                    novaDistancia.setCidadeOrigem(cidadeOrigem);
+                    novaDistancia.setCidadeDestino(cidadeDestino);
+                    novaDistancia.setQuilometros(431);
+                    distanciaRepository.save(novaDistancia);
+                    return novaDistancia;
+                });
+
+        // Calcular o valor do frete
+        BigDecimal valorCalculado = freteService.calcularValorFrete(cidadeOrigem, cidadeDestino, categoriaFrete);
+        System.out.println("Valor calculado do frete: R$" + valorCalculado);
+    }
+
+    private static void testarBuscarFretePorId(FreteService freteService) {
+        // Testar busca com ID válido
+        try {
+            Optional<Frete> optionalFrete = freteService.buscarFretePorId(1);
+            if (optionalFrete.isPresent()) {
+                Frete frete = optionalFrete.get();
+                System.out.println("Frete encontrado: Código: " + frete.getCodigo() +
+                        ", Nota Fiscal: " + frete.getNumeroNotaFiscal());
+            } else {
+                System.out.println("Frete com ID 1 não encontrado.");
+            }
+        } catch (IllegalArgumentException e) {
+            System.out.println("Erro ao buscar frete: " + e.getMessage());
+        }
+
+        // Testar busca com ID inválido
+        try {
+            freteService.buscarFretePorId(0);
+        } catch (IllegalArgumentException e) {
+            System.out.println("Teste de ID inválido passou: " + e.getMessage());
+        }
     }
 }
